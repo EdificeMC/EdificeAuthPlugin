@@ -47,18 +47,19 @@ public class EdificeAuthPlugin {
 	@Inject
 	private Logger logger;
 	private Configuration config;
-	Client client;
+	
+	WebTarget target;
 
 	@Listener
 	public void preInit(GamePreInitializationEvent event) {
 		setupConfig();
-		client = ClientBuilder.newClient();
+		Client client = ClientBuilder.newClient();
+		target = client.target(config.getRestURI().toString() + "/auth/verificationcode");
 	}
 
 	@Listener
 	public void playerLogin(ClientConnectionEvent.Login event) throws MalformedURLException, JSONException {
 		GameProfile playerProfile = event.getProfile();
-		WebTarget target = client.target(config.getRestURI().toString() + "/auth/verificationcode");
 		JSONObject body = new JSONObject();
 		body.put("playerId", playerProfile.getUniqueId().toString().replace("-", ""));
 
