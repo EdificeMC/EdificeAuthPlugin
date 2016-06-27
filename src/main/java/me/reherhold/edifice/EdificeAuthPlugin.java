@@ -102,9 +102,8 @@ public class EdificeAuthPlugin {
 		case 400:
 			// TODO This is pretty hacky, needs fixed
 			if (responseBody.getString("message").equals("User already signed up.")) {
-				event.setMessage(Text.of("You have already signed up for an account. You may log in ",
-						Text.builder("here").color(TextColors.GOLD)
-								.onClick(TextActions.openUrl(new URL(config.getWebURI().toString() + "/login")))));
+				event.setMessage(Text.of("You have already signed up for an account. You may log in at ",
+						TextColors.GOLD, config.getWebURI().toString()));
 			} else {
 				errMessage(response.getStatus(), responseBody, event);
 			}

@@ -26,7 +26,7 @@ public class Configuration {
      ********************/
 
     @Setting(value = "rest-uri", comment = "REST API URI") private URI restURI = URI.create("https://api.edificemc.com");
-    @Setting(value = "web-uri", comment = "Website URI") private URI webURI = URI.create("https://www.edificemc.com/#");
+    @Setting(value = "web-uri", comment = "Website URI") private URI webURI = URI.create("edificemc.com/#"); // No 'https://www' for better UI 
     @Setting(value = "secret-key", comment = "Secret key for issuing verification codes") private String secretkey = "secret";
 
     public URI getRestURI() {
