@@ -4,7 +4,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -47,13 +52,23 @@ public class EdificeAuthPlugin {
 	@Inject
 	private Logger logger;
 	private Configuration config;
-	
+
 	WebTarget target;
 
 	@Listener
-	public void preInit(GamePreInitializationEvent event) {
+	public void preInit(GamePreInitializationEvent event) throws NoSuchAlgorithmException, KeyManagementException {
 		setupConfig();
-		Client client = ClientBuilder.newClient();
+
+		// Jersey client setup
+		SSLContext sslCxt = SSLContext.getInstance("TLSv1");
+		System.setProperty("https.protocols", "TLSv1");
+
+		TrustManager[] trustAllCerts = { new InsecureTrustManager() };
+		sslCxt.init(null, trustAllCerts, new java.security.SecureRandom());
+		HostnameVerifier allHostsValid = new InsecureHostnameVerifier();
+
+		Client client = ClientBuilder.newBuilder().sslContext(sslCxt).hostnameVerifier(allHostsValid).build();
+
 		target = client.target(config.getRestURI().toString() + "/auth/verificationcode");
 	}
 
@@ -85,21 +100,23 @@ public class EdificeAuthPlugin {
 					TextColors.WHITE, " to finish your registration."));
 			break;
 		case 400:
-			if (responseBody.getString("message").equals(
-					"The player with UUID " + playerProfile.getUniqueId().toString() + " has already signed up.")) {
+			// TODO This is pretty hacky, needs fixed
+			if (responseBody.getString("message").equals("User already signed up.")) {
 				event.setMessage(Text.of("You have already signed up for an account. You may log in ",
 						Text.builder("here").color(TextColors.GOLD)
 								.onClick(TextActions.openUrl(new URL(config.getWebURI().toString() + "/login")))));
 			} else {
 				errMessage(response.getStatus(), responseBody, event);
 			}
+			break;
 		default:
 			errMessage(response.getStatus(), responseBody, event);
+			break;
 		}
 		event.setCancelled(true);
 
 	}
-	
+
 	private void errMessage(int status, JSONObject responseBody, ClientConnectionEvent.Login event) {
 		TextTemplate errTemplate = TextTemplate.of("An error occurrred. Status: ", TextTemplate.arg("status"),
 				". Message: ", TextTemplate.arg("message"));
@@ -108,10 +125,9 @@ public class EdificeAuthPlugin {
 		if (responseBody.has("message")) {
 			message = Text.of(responseBody.getString("message"));
 		}
-		event.setMessage(errTemplate.apply(ImmutableMap.of("status", Text.of(status), "message", message))
-				.build());
+		event.setMessage(errTemplate.apply(ImmutableMap.of("status", Text.of(status), "message", message)).build());
 	}
-	
+
 	@Listener
 	public void playerJoin(ClientConnectionEvent.Join event) {
 		// If the player somehow managed to not be disconnected, kick them
