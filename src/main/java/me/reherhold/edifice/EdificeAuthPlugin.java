@@ -74,7 +74,7 @@ public class EdificeAuthPlugin {
 	public void playerLogin(ClientConnectionEvent.Login event) throws MalformedURLException, JSONException {
 		GameProfile playerProfile = event.getProfile();
 		JSONObject body = new JSONObject();
-		body.put("playerId", playerProfile.getUniqueId().toString().replace("-", ""));
+		body.put("playerId", playerProfile.getUniqueId().toString());
 
 		Invocation.Builder invocationBuilder = target.request(MediaType.APPLICATION_JSON_TYPE);
 		invocationBuilder.header("Authorization", config.getSecretKey());
