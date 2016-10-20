@@ -1,12 +1,19 @@
 package me.reherhold.edifice;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import jersey.repackaged.com.google.common.collect.ImmutableMap;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
 import ninja.leaping.configurate.ConfigurationNode;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import ninja.leaping.configurate.objectmapping.ObjectMappingException;
-import org.json.JSONException;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicHeader;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.spongepowered.api.config.DefaultConfig;
@@ -21,20 +28,11 @@ import org.spongepowered.api.text.format.TextColors;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 
-import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 
 @Plugin(id = "edifice-auth-plugin")
 public class EdificeAuthPlugin {
@@ -44,45 +42,35 @@ public class EdificeAuthPlugin {
     @Inject private Logger logger;
     private Configuration config;
 
-    WebTarget target;
-
     @Listener
     public void preInit(GamePreInitializationEvent event) throws NoSuchAlgorithmException, KeyManagementException {
         setupConfig();
+        setupRestClient();
+    }
 
-        // Jersey client setup
-        SSLContext sslCxt = SSLContext.getInstance("TLSv1");
+    private void setupRestClient() throws NoSuchAlgorithmException, KeyManagementException {
+        SSLContext sslcontext = SSLContext.getInstance("TLSv1");
         System.setProperty("https.protocols", "TLSv1");
-
         TrustManager[] trustAllCerts = {new InsecureTrustManager()};
-        sslCxt.init(null, trustAllCerts, new java.security.SecureRandom());
-        HostnameVerifier allHostsValid = new InsecureHostnameVerifier();
+        sslcontext.init(null, trustAllCerts, new java.security.SecureRandom());
 
-        Client client = ClientBuilder.newBuilder().sslContext(sslCxt).hostnameVerifier(allHostsValid).build();
+        CloseableHttpClient httpclient = HttpClients.custom()
+                .setDefaultHeaders(Lists.newArrayList(new BasicHeader("Authorization", this.config.getSecretKey())))
+                .setSSLHostnameVerifier(new InsecureHostnameVerifier())
+                .setSSLContext(sslcontext)
+                .build();
 
-        this.target = client.target(this.config.getRestURI().toString() + "/auth/verificationcode");
+        Unirest.setHttpClient(httpclient);
     }
 
     @Listener
-    public void playerLogin(ClientConnectionEvent.Login event) throws MalformedURLException, JSONException {
+    public void playerLogin(ClientConnectionEvent.Login event) throws UnirestException {
         GameProfile playerProfile = event.getProfile();
         JSONObject body = new JSONObject();
         body.put("playerId", playerProfile.getUniqueId().toString());
 
-        Invocation.Builder invocationBuilder = this.target.request(MediaType.APPLICATION_JSON_TYPE);
-        invocationBuilder.header("Authorization", this.config.getSecretKey());
-
-        Response response = invocationBuilder.post(Entity.entity(body.toString(), MediaType.APPLICATION_JSON));
-
-        String rawBody = response.readEntity(String.class);
-        JSONObject responseBody;
-        try {
-            responseBody = new JSONObject(rawBody);
-        } catch (Exception e) {
-            event.setMessage(Text.of("An unexpected error occured: " + rawBody));
-            event.setCancelled(true);
-            return;
-        }
+        HttpResponse<JsonNode> response = Unirest.post(this.config.getRestURI().toString() + "/auth/verificationcode").body(body).asJson();
+        JSONObject responseBody = response.getBody().getObject();
 
         switch (response.getStatus()) {
             case 201:
