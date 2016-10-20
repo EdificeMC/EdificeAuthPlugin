@@ -36,7 +36,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-@Plugin(id = PomData.ARTIFACT_ID, name = PomData.NAME, version = PomData.VERSION)
+@Plugin(id = "edifice-auth-plugin")
 public class EdificeAuthPlugin {
 
     @Inject @DefaultConfig(sharedRoot = false) private File configFile;
