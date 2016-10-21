@@ -1,19 +1,18 @@
 package me.reherhold.edifice;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
+import com.mashape.unirest.request.HttpRequest;
 import ninja.leaping.configurate.ConfigurationNode;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.loader.ConfigurationLoader;
 import ninja.leaping.configurate.objectmapping.ObjectMappingException;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.message.BasicHeader;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.spongepowered.api.config.DefaultConfig;
@@ -55,12 +54,14 @@ public class EdificeAuthPlugin {
         sslcontext.init(null, trustAllCerts, new java.security.SecureRandom());
 
         CloseableHttpClient httpclient = HttpClients.custom()
-                .setDefaultHeaders(Lists.newArrayList(new BasicHeader("Authorization", this.config.getSecretKey())))
                 .setSSLHostnameVerifier(new InsecureHostnameVerifier())
                 .setSSLContext(sslcontext)
                 .build();
 
         Unirest.setHttpClient(httpclient);
+        Unirest.setDefaultHeader("Authorization", this.config.getSecretKey());
+        // Because Unirest is retarded and won't do this automatically
+        Unirest.setDefaultHeader("Content-Type", "application/json");
     }
 
     @Listener
